@@ -1,0 +1,69 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fifa-postgres
+    restart: always
+    env_file:
+      - .env.docker
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_DB: fifa_tournament
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - fifa-network
+
+  app:
+    build: .
+    container_name: fifa-app
+    restart: always
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.docker
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fifa-network
+
+  backup:
+    image: postgres:16-alpine
+    container_name: fifa-backup
+    restart: always
+    env_file:
+      - .env.docker
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:ro
+      - ./backups:/backups
+      - ./backup.sh:/backup.sh:ro
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        chmod +x /backup.sh
+        while true; do
+          echo "[$$(date)] Запуск бэкапа..."
+          /backup.sh
+          sleep 86400
+        done
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - fifa-network
+
+volumes:
+  postgres_data:
+
+networks:
+  fifa-network:
+    driver: bridge

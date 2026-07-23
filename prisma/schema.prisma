@@ -1,0 +1,151 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../app/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================
+// 👥 ПОЛЬЗОВАТЕЛИ
+// ============================================
+model User {
+  id            Int     @id @default(autoincrement())
+  username      String  @unique // Логин для входа
+  password      String // Хэш пароля
+  fifaNickname  String // Ник в FIFA (отображается в профиле)
+  role          Role    @default(PARTICIPANT)
+  isActive      Boolean @default(true)
+  totalPoints   Int     @default(0) // Сумма очков за все сезоны
+  seasonsPlayed Int     @default(0) // Количество завершённых сезонов
+
+  seasonTeams   SeasonTeam[]
+  seasonResults SeasonResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum Role {
+  ADMIN
+  PARTICIPANT
+}
+
+// ============================================
+// 📚 СПРАВОЧНИК КОМАНД
+// ============================================
+model TeamReference {
+  id        Int     @id @default(autoincrement())
+  name      String  @unique
+  shortName String  @unique
+  logo      String?
+  isActive  Boolean @default(true)
+
+  seasonTeams SeasonTeam[]
+
+  createdAt DateTime @default(now())
+}
+
+// ============================================
+// 🏆 СЕЗОНЫ
+// ============================================
+model Season {
+  id                     Int          @id @default(autoincrement())
+  name                   String       @unique
+  isCurrent              Boolean      @default(false)
+  roundsCount            Int          @default(1)
+  calendarGenerationType CalendarType @default(AUTO)
+  status                 SeasonStatus @default(SETUP)
+  startDate              DateTime?
+  endDate                DateTime?
+
+  teams   SeasonTeam[]
+  matches Match[]
+  results SeasonResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum CalendarType {
+  AUTO
+  MANUAL
+}
+
+enum SeasonStatus {
+  SETUP
+  ACTIVE
+  FINISHED
+}
+
+// ============================================
+// ⚽ КОМАНДА В СЕЗОНЕ
+// ============================================
+model SeasonTeam {
+  id              Int  @id @default(autoincrement())
+  seasonId        Int
+  teamReferenceId Int
+  userId          Int?
+
+  played       Int @default(0)
+  won          Int @default(0)
+  drawn        Int @default(0)
+  lost         Int @default(0)
+  goalsFor     Int @default(0)
+  goalsAgainst Int @default(0)
+  points       Int @default(0)
+
+  season        Season        @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  teamReference TeamReference @relation(fields: [teamReferenceId], references: [id])
+  user          User?         @relation(fields: [userId], references: [id])
+  homeMatches   Match[]       @relation("HomeTeam")
+  awayMatches   Match[]       @relation("AwayTeam")
+
+  @@unique([seasonId, teamReferenceId])
+  @@unique([seasonId, userId])
+}
+
+// ============================================
+// 🏟 МАТЧИ
+// ============================================
+model Match {
+  id         Int     @id @default(autoincrement())
+  seasonId   Int
+  round      Int
+  homeTeamId Int
+  awayTeamId Int
+  homeScore  Int?
+  awayScore  Int?
+  isPlayed   Boolean @default(false)
+
+  season   Season     @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  homeTeam SeasonTeam @relation("HomeTeam", fields: [homeTeamId], references: [id])
+  awayTeam SeasonTeam @relation("AwayTeam", fields: [awayTeamId], references: [id])
+
+  @@unique([seasonId, round, homeTeamId])
+  @@unique([seasonId, round, awayTeamId])
+}
+
+// ============================================
+// 📊 РЕЗУЛЬТАТ УЧАСТНИКА В СЕЗОНЕ
+// Хранит: какое место занял, сколько очков получил
+// Создаётся автоматически при завершении сезона
+// ============================================
+model SeasonResult {
+  id           Int @id @default(autoincrement())
+  seasonId     Int
+  userId       Int
+  place        Int // Место в таблице (1, 2, 3...)
+  points       Int // Очки за место (100, 90, 80...)
+  wins         Int @default(0) // Побед в сезоне
+  draws        Int @default(0) // Ничьих
+  losses       Int @default(0) // Поражений
+  goalsFor     Int @default(0)
+  goalsAgainst Int @default(0)
+
+  season Season @relation(fields: [seasonId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id])
+
+  @@unique([seasonId, userId])
+}
