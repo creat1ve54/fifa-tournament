@@ -80,12 +80,6 @@ const form = reactive({
 const loading = ref(false);
 const error = ref("");
 
-toast.add({
-  title: "✅ Письмо отправлено!",
-  description: `Инструкция по подтверждению отправлена на ${form.email}. Проверьте почту (и папку "Спам").`,
-  color: "success",
-});
-
 async function handleRegister() {
   loading.value = true;
   error.value = "";
