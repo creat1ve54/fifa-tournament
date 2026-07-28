@@ -20,17 +20,19 @@ RUN npx prisma generate
 # Собираем Nuxt
 RUN npm run build
 
+# ==========================================
 # Этап 2: Продакшен
+# ==========================================
 FROM node:24-alpine
 
 WORKDIR /app
 
-# Копируем собранный проект
+# Копируем собранный проект (.output уже содержит всё нужное для запуска!)
 COPY --from=builder /app/.output .output
 COPY --from=builder /app/package.json .
-COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/prisma ./prisma
 
+# Копируем .env.docker как .env (как в твоём варианте)
 COPY --from=builder /app/.env.docker /app/.env
 
 # Переменные окружения
