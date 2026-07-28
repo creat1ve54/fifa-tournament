@@ -11,14 +11,25 @@ datasource db {
 // 👥 ПОЛЬЗОВАТЕЛИ
 // ============================================
 model User {
-  id            Int     @id @default(autoincrement())
-  username      String  @unique // Логин для входа
-  password      String // Хэш пароля
-  fifaNickname  String // Ник в FIFA (отображается в профиле)
-  role          Role    @default(PARTICIPANT)
-  isActive      Boolean @default(true)
-  totalPoints   Int     @default(0) // Сумма очков за все сезоны
-  seasonsPlayed Int     @default(0) // Количество завершённых сезонов
+  id              Int     @id @default(autoincrement())
+  username        String  @unique
+  email           String? @unique // ← ДОБАВЛЕНО: Уникальный, но опциональный для старых юзеров
+  password        String
+  fifaNickname    String
+  role            Role    @default(PARTICIPANT)
+  isActive        Boolean @default(true)
+  isEmailVerified Boolean @default(false) // ← ДОБАВЛЕНО: Флаг подтверждения почты
+
+  // Поля для подтверждения email
+  emailVerifyToken     String?
+  emailVerifyExpiresAt DateTime?
+
+  // Поля для сброса пароля
+  passwordResetToken     String?
+  passwordResetExpiresAt DateTime?
+
+  totalPoints   Int @default(0)
+  seasonsPlayed Int @default(0)
 
   seasonTeams   SeasonTeam[]
   seasonResults SeasonResult[]

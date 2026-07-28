@@ -6,6 +6,8 @@ export interface PublicUser {
   totalPoints: number;
   seasonsPlayed: number;
   createdAt?: string;
+  email?: string | null;
+  isEmailVerified?: boolean;
 }
 
 export interface User extends PublicUser {

@@ -34,6 +34,15 @@
             {{ error }}
           </p>
 
+          <p class="text-center">
+            <NuxtLink
+              to="/forgot-password"
+              class="text-blue-400 hover:underline text-sm"
+            >
+              Забыли пароль?
+            </NuxtLink>
+          </p>
+
           <p class="text-gray-400 text-sm text-center">
             Нет аккаунта?
             <NuxtLink to="/register" class="text-blue-400 hover:underline"

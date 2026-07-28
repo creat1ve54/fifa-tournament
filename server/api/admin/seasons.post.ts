@@ -1,20 +1,18 @@
 import { z } from "zod";
 import { usePrisma } from "~~/server/utils/prisma";
-import type { User } from "~~/server/types";
+import { requireUser } from "~~/server/utils/auth";
 
 const schema = z.object({
-  name: z.string().min(1, "Укажите название"),
-  roundsCount: z.number().min(1).max(2),
+  name: z.string().min(3, "Название сезона должно быть не менее 3 символов"),
+  roundsCount: z.number().int().min(1, "Минимум 1 тур"),
   calendarGenerationType: z.enum(["AUTO", "MANUAL"]),
+  isCurrent: z.boolean().default(false),
 });
 
 export default defineEventHandler(async (event) => {
-  const session = (await getUserSession(event)) as unknown as {
-    user: User | undefined;
-  };
-
-  if (!session?.user || session.user.role !== "ADMIN") {
-    throw createError({ statusCode: 403, message: "Доступ запрещён" });
+  const admin = await requireUser(event);
+  if (admin.role !== "ADMIN") {
+    throw createError({ statusCode: 403, message: "Доступ запрещен" });
   }
 
   const body = await readBody(event);
@@ -28,27 +26,33 @@ export default defineEventHandler(async (event) => {
   }
 
   const prisma = usePrisma();
+  const { name, roundsCount, calendarGenerationType, isCurrent } =
+    validation.data;
 
-  // Проверяем, существует ли сезон с таким названием
-  const existing = await prisma.season.findUnique({
-    where: { name: validation.data.name },
-  });
-
-  if (existing) {
-    throw createError({
-      statusCode: 400,
-      message: "Сезон с таким названием уже существует",
+  // 💡 ВАЖНО: Если админ ставит галочку "Текущий сезон",
+  // мы снимаем эту галочку со всех остальных сезонов, чтобы "текущий" был всегда один.
+  // Но это НЕ мешает существовать и быть активным (status: ACTIVE) множеству других сезонов!
+  if (isCurrent) {
+    await prisma.season.updateMany({
+      where: { isCurrent: true },
+      data: { isCurrent: false },
     });
   }
 
-  const season = await prisma.season.create({
+  // Создаем новый сезон
+  const newSeason = await prisma.season.create({
     data: {
-      name: validation.data.name,
-      roundsCount: validation.data.roundsCount,
-      calendarGenerationType: validation.data.calendarGenerationType,
-      status: "SETUP",
+      name,
+      roundsCount,
+      calendarGenerationType,
+      isCurrent,
+      status: "SETUP", // Новый сезон всегда создается в режиме настройки
     },
   });
 
-  return season;
+  return {
+    success: true,
+    message: "Сезон успешно создан",
+    season: newSeason,
+  };
 });

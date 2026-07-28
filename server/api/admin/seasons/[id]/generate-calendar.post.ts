@@ -26,15 +26,16 @@ export default defineEventHandler(async (event) => {
     throw createError({ statusCode: 400, message: "Сезон уже активирован" });
   }
 
-  if (season.teams.length < 2) {
+  if ((season.teams || []).length < 2) {
     throw createError({ statusCode: 400, message: "Нужно минимум 2 команды" });
   }
 
-  if (season.matches.length > 0) {
+  if ((season.matches || []).length > 0) {
     await prisma.match.deleteMany({ where: { seasonId: id } });
   }
 
-  const teamIds = season.teams.map((t) => t.id);
+  // ✅ ИСПРАВЛЕНИЕ: добавлено || []
+  const teamIds = (season.teams || []).map((t) => t.id);
   const n = teamIds.length;
   const roundsCount = season.roundsCount;
 
@@ -52,7 +53,6 @@ export default defineEventHandler(async (event) => {
 
   for (let round = 0; round < totalTeams - 1; round++) {
     const roundMatches: { home: number; away: number }[] = [];
-
     const current = [fixed, ...rotating];
 
     for (let i = 0; i < totalTeams / 2; i++) {
@@ -68,7 +68,6 @@ export default defineEventHandler(async (event) => {
         roundMatches.push({ home: away, away: home });
       }
     }
-
     rounds.push(roundMatches);
 
     const last = rotating.pop();
@@ -87,30 +86,21 @@ export default defineEventHandler(async (event) => {
   for (let circle = 0; circle < roundsCount; circle++) {
     for (let roundIdx = 0; roundIdx < rounds.length; roundIdx++) {
       const roundMatches = rounds[roundIdx];
-
       if (!roundMatches) continue;
 
       const actualRound = circle * rounds.length + roundIdx + 1;
 
       for (const match of roundMatches) {
-        if (circle === 1) {
-          allMatches.push({
-            seasonId: id,
-            round: actualRound,
-            homeTeamId: match.away,
-            awayTeamId: match.home,
-          });
-        } else {
-          allMatches.push({
-            seasonId: id,
-            round: actualRound,
-            homeTeamId: match.home,
-            awayTeamId: match.away,
-          });
-        }
+        allMatches.push({
+          seasonId: id,
+          round: actualRound,
+          homeTeamId: circle === 1 ? match.away : match.home,
+          awayTeamId: circle === 1 ? match.home : match.away,
+        });
       }
     }
   }
+
   await prisma.match.createMany({ data: allMatches });
 
   return {

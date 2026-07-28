@@ -48,11 +48,6 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  await prisma.season.updateMany({
-    where: { status: "ACTIVE" },
-    data: { status: "FINISHED" },
-  });
-
   const updated = await prisma.season.update({
     where: { id },
     data: {

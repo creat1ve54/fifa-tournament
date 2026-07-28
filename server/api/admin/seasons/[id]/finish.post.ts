@@ -1,7 +1,6 @@
 import { usePrisma } from "~~/server/utils/prisma";
 import type { User } from "~~/server/types";
 
-// Система очков за места
 function getPointsForPlace(place: number): number {
   if (place === 1) return 100;
   if (place === 2) return 90;
@@ -28,9 +27,7 @@ export default defineEventHandler(async (event) => {
   const season = await prisma.season.findUnique({
     where: { id },
     include: {
-      teams: {
-        include: { user: true },
-      },
+      teams: { include: { user: true } },
       results: true,
     },
   });
@@ -46,8 +43,8 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Сортируем команды по очкам
-  const sortedTeams = [...season.teams].sort((a, b) => {
+  // Добавили || [] на случай, если teams вдруг undefined (защита)
+  const sortedTeams = [...(season.teams || [])].sort((a, b) => {
     if (b.points !== a.points) return b.points - a.points;
     const gdA = a.goalsFor - a.goalsAgainst;
     const gdB = b.goalsFor - b.goalsAgainst;
@@ -55,17 +52,16 @@ export default defineEventHandler(async (event) => {
     return b.goalsFor - a.goalsFor;
   });
 
-  // Если уже были результаты — удаляем их (для пересчёта)
   if (season.results.length > 0) {
     await prisma.seasonResult.deleteMany({ where: { seasonId: id } });
   }
 
-  // Создаём результаты для каждого участника
-  for (let i = 0; i < sortedTeams.length; i++) {
-    const team = sortedTeams[i];
-    if (!team.userId) continue; // Пропускаем команды без участников
+  // ✅ ИСПРАВЛЕНИЕ: используем entries() для безопасного получения индекса и элемента
+  for (const [index, team] of sortedTeams.entries()) {
+    // Явная проверка успокаивает TypeScript
+    if (!team || !team.userId) continue;
 
-    const place = i + 1;
+    const place = index + 1;
     const points = getPointsForPlace(place);
 
     await prisma.seasonResult.create({
@@ -82,7 +78,6 @@ export default defineEventHandler(async (event) => {
       },
     });
 
-    // 🔥 ВАЖНО: Обновляем общий рейтинг пользователя
     await prisma.user.update({
       where: { id: team.userId },
       data: {
@@ -92,7 +87,6 @@ export default defineEventHandler(async (event) => {
     });
   }
 
-  // Завершаем сезон
   const updated = await prisma.season.update({
     where: { id },
     data: {

@@ -11,7 +11,7 @@
         </template>
 
         <form @submit.prevent="handleRegister" class="space-y-4">
-          <div class="flex flex-col gap-2">
+          <div class="flex flex-col gap-4">
             <UFormGroup label="Логин" required>
               <UInput
                 v-model="form.username"
@@ -24,6 +24,15 @@
               <UInput
                 v-model="form.fifaNickname"
                 placeholder="Ваш ник в FIFA"
+                class="w-full"
+              />
+            </UFormGroup>
+
+            <UFormGroup label="Email" required>
+              <UInput
+                v-model="form.email"
+                type="email"
+                placeholder="example@mail.ru"
                 class="w-full"
               />
             </UFormGroup>
@@ -64,6 +73,7 @@ const { refreshUser } = useAuth();
 const form = reactive({
   username: "",
   fifaNickname: "",
+  email: "",
   password: "",
 });
 const loading = ref(false);
@@ -75,7 +85,6 @@ async function handleRegister() {
 
   try {
     await $fetch("/api/auth/register", { method: "POST", body: form });
-
     await refreshUser();
     navigateTo("/");
   } catch (err: any) {

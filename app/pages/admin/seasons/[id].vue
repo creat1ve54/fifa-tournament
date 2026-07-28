@@ -219,7 +219,7 @@
             <div
               v-for="match in round.matches"
               :key="match.id"
-              class="bg-gray-200/50 rounded p-3 flex items-center justify-between"
+              class="bg-gray-200/50 rounded p-3 flex gap-2 items-center justify-between"
             >
               <div class="flex items-center gap-2 flex-1">
                 <span class="font-medium text-gray-900 dark:text-white">

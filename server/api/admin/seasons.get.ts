@@ -1,31 +1,21 @@
 import { usePrisma } from "~~/server/utils/prisma";
-import type { User } from "~~/server/types";
+import { requireUser } from "~~/server/utils/auth";
 
 export default defineEventHandler(async (event) => {
-  const session = (await getUserSession(event)) as unknown as {
-    user: User | undefined;
-  };
-
-  if (!session?.user || session.user.role !== "ADMIN") {
-    throw createError({ statusCode: 403, message: "Доступ запрещён" });
+  const admin = await requireUser(event);
+  if (admin.role !== "ADMIN") {
+    throw createError({ statusCode: 403, message: "Доступ запрещен" });
   }
 
   const prisma = usePrisma();
 
+  // Получаем все сезоны, отсортированные по дате создания (новые сверху)
   const seasons = await prisma.season.findMany({
+    orderBy: {
+      createdAt: "desc",
+    },
     include: {
-      teams: {
-        include: {
-          teamReference: true,
-          user: {
-            select: {
-              id: true,
-              username: true,
-              fifaNickname: true,
-            },
-          },
-        },
-      },
+      // Подсчитываем количество команд в каждом сезоне для удобства админа
       _count: {
         select: {
           teams: true,
@@ -33,7 +23,6 @@ export default defineEventHandler(async (event) => {
         },
       },
     },
-    orderBy: { createdAt: "desc" },
   });
 
   return seasons;

@@ -18,6 +18,6 @@ export default defineConfig({
   datasource: {
     url:
       process.env.DATABASE_URL ||
-      "postgresql://postgres:dummy@localhost:5432/fifa_tournament",
+      "postgresql://postgres:22@Kalkans@22@localhost:5432/fifa_tournament",
   },
 });

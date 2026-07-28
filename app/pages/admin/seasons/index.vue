@@ -23,17 +23,31 @@
 
     <div v-else class="grid gap-4">
       <UCard v-for="season in seasons" :key="season.id">
-        <div class="flex items-center justify-between">
+        <div class="flex items-center justify-between flex-wrap gap-4">
           <div class="flex-1">
             <h3 class="text-xl font-bold text-gray-900">{{ season.name }}</h3>
-            <div class="flex gap-4 mt-2 text-sm text-gray-400">
-              <span>
-                🔄 {{ season.roundsCount }}
-                {{ season.roundsCount === 1 ? "круг" : "круга" }}
-              </span>
-              <UBadge :color="statusColor(season.status)" size="xs">
-                {{ statusText(season.status) }}
-              </UBadge>
+            <div class="flex gap-4 mt-2 text-sm text-gray-500">
+              <span
+                >🔄 {{ season.roundsCount }}
+                {{ season.roundsCount === 1 ? "круг" : "круга" }}</span
+              >
+
+              <!-- ДОБАВЛЕНО: Выпадающий список для смены статуса -->
+              <div class="flex items-center gap-2">
+                <span>Статус:</span>
+                <USelect
+                  :model-value="season.status"
+                  :items="statusOptions"
+                  value-key="value"
+                  label-key="label"
+                  size="xs"
+                  class="w-32"
+                  @update:model-value="
+                    (newStatus) => changeStatus(season.id, newStatus)
+                  "
+                />
+              </div>
+              <!-- КОНЕЦ ДОБАВЛЕННОГО -->
             </div>
           </div>
 
@@ -43,7 +57,7 @@
             </NuxtLink>
             <UButton
               @click="deleteSeason(season.id)"
-              color="secondary"
+              color="error"
               variant="ghost"
               size="sm"
             >
@@ -54,7 +68,7 @@
       </UCard>
     </div>
 
-    <!-- Модальное окно создания сезона -->
+    <!-- Модальное окно создания сезона (без изменений) -->
     <UModal v-model:open="showCreateModal" title="Создать новый сезон">
       <template #body>
         <form @submit.prevent="createSeason" class="space-y-4">
@@ -83,14 +97,12 @@
               @click="showCreateModal = false"
               color="error"
               variant="ghost"
+              >Отмена</UButton
             >
-              Отмена
-            </UButton>
-            <UButton type="submit" color="primary" :loading="creating">
-              Создать
-            </UButton>
+            <UButton type="submit" color="primary" :loading="creating"
+              >Создать</UButton
+            >
           </div>
-
           <p v-if="error" class="text-red-400 text-sm">{{ error }}</p>
         </form>
       </template>
@@ -123,7 +135,6 @@ const newSeason = reactive({
   calendarGenerationType: "AUTO" as "AUTO" | "MANUAL",
 });
 
-// Правильные items для USelect (используется :items, а не :options)
 const roundsOptions = [
   { label: "1 круг", value: 1 },
   { label: "2 круга", value: 2 },
@@ -132,6 +143,13 @@ const roundsOptions = [
 const calendarOptions = [
   { label: "Автоматическая", value: "AUTO" },
   { label: "Ручная", value: "MANUAL" },
+];
+
+// Опции для смены статуса
+const statusOptions = [
+  { label: "⚙️ Настройка", value: "SETUP" },
+  { label: "🟢 Активен", value: "ACTIVE" },
+  { label: "🏁 Завершён", value: "FINISHED" },
 ];
 
 function statusColor(status?: string): "neutral" | "success" | "info" {
@@ -160,16 +178,27 @@ function statusText(status?: string): string {
   }
 }
 
+// НОВАЯ ФУНКЦИЯ: Смена статуса сезона
+async function changeStatus(seasonId: number, newStatus: string) {
+  try {
+    await $fetch(`/api/admin/seasons/${seasonId}/status`, {
+      method: "PATCH",
+      body: { status: newStatus },
+    });
+    // Обновляем список сезонов после успешного изменения
+    await refresh();
+  } catch (err: any) {
+    alert(err.data?.message || "Ошибка изменения статуса");
+    // В случае ошибки обновляем список, чтобы вернуть старый статус в UI
+    await refresh();
+  }
+}
+
 async function createSeason() {
   error.value = "";
   creating.value = true;
-
   try {
-    await $fetch("/api/admin/seasons", {
-      method: "POST",
-      body: newSeason,
-    });
-
+    await $fetch("/api/admin/seasons", { method: "POST", body: newSeason });
     showCreateModal.value = false;
     newSeason.name = "";
     newSeason.roundsCount = 1;
@@ -183,8 +212,12 @@ async function createSeason() {
 }
 
 async function deleteSeason(id: number) {
-  if (!confirm("Удалить сезон? Все данные будут потеряны!")) return;
-
+  if (
+    !confirm(
+      "Удалить сезон? Все данные (матчи, результаты) будут потеряны безвозвратно!",
+    )
+  )
+    return;
   try {
     await $fetch(`/api/admin/seasons/${id}`, { method: "DELETE" });
     await refresh();
