@@ -40,7 +40,7 @@
             />
           </UFormGroup>
 
-          <UButton type="submit" block :loading="loading">
+          <UButton type="submit" block :loading="loading" class="mt-4">
             Отправить инструкцию
           </UButton>
 
@@ -65,6 +65,8 @@ const loading = ref(false);
 const error = ref("");
 const isSuccess = ref(false);
 
+const toast = useToast();
+
 async function handleForgot() {
   loading.value = true;
   error.value = "";
@@ -74,10 +76,22 @@ async function handleForgot() {
       method: "POST",
       body: { email: email.value },
     });
+    toast.add({
+      title: " Письмо отправлено",
+      description: `Если аккаунт с email ${email.value} существует, мы отправили инструкцию по восстановлению пароля.`,
+      color: "success",
+    });
+
     // Всегда показываем успех (защита от перебора email)
     isSuccess.value = true;
   } catch (err: any) {
     error.value = err.data?.message || "Ошибка при отправке";
+
+    toast.add({
+      title: "❌ Ошибка",
+      description: error.value,
+      color: "error",
+    });
   } finally {
     loading.value = false;
   }

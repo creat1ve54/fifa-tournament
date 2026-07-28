@@ -69,6 +69,7 @@
 
 <script setup lang="ts">
 const { refreshUser } = useAuth();
+const toast = useToast();
 
 const form = reactive({
   username: "",
@@ -79,16 +80,33 @@ const form = reactive({
 const loading = ref(false);
 const error = ref("");
 
+toast.add({
+  title: "✅ Письмо отправлено!",
+  description: `Инструкция по подтверждению отправлена на ${form.email}. Проверьте почту (и папку "Спам").`,
+  color: "success",
+});
+
 async function handleRegister() {
   loading.value = true;
   error.value = "";
 
   try {
     await $fetch("/api/auth/register", { method: "POST", body: form });
+    toast.add({
+      title: "✅ Письмо отправлено!",
+      description: `Инструкция по подтверждению отправлена на ${form.email}. Проверьте почту (и папку "Спам").`,
+      color: "success",
+    });
+
     await refreshUser();
     navigateTo("/");
   } catch (err: any) {
     error.value = err.data?.message || "Ошибка регистрации";
+    toast.add({
+      title: " Ошибка регистрации",
+      description: error.value,
+      color: "error",
+    });
   } finally {
     loading.value = false;
   }
